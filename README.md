@@ -1,23 +1,26 @@
-# liftiq-claude-setup
+# agentdeck-claude-setup
 
-> El cerebro multi-agente que ayuda a escribir **LiftIQ — Barbell Tracker** (SwiftUI, iOS).
-> Build-in-public. La app es privada. El setup que escribe el código vive aquí.
+> El cerebro multi-agente que construye **[agentdeck](https://github.com/devsdm99/agentdeck)** — un micro-SaaS de pago para devs Claude Code.
+> Build-in-public. La app vive en su propio repo (también público). Aquí vive el setup que escribe ese código.
 
 ---
 
 ## Qué es esto
 
-Soy [Sergio Díaz](https://sergiodima.dev) y estoy montando, en público y desde cero, un setup multi-agente con [Claude Code](https://claude.com/claude-code) para una app SwiftUI real (LiftIQ).
+Soy [Sergio Díaz](https://sergiodima.dev) y estoy construyendo, en público y desde cero, un setup multi-agente con [Claude Code](https://claude.com/claude-code) — y con ese setup estoy construyendo agentdeck, una herramienta para visualizar el setup multi-agente de cualquier repo de Claude Code.
 
-Este repo contiene **solo el setup** — `CLAUDE.md`, subagentes, skills y hooks — sin código de la app.
+Este repo contiene **solo el setup** — `CLAUDE.md`, subagentes, skills y hooks — sin código de la app. La app vive en [github.com/devsdm99/agentdeck](https://github.com/devsdm99/agentdeck).
 
-Cada semana publico un post en mi newsletter [Multiagente](https://sergiodima.dev/multiagente) explicando qué he cambiado, por qué, y qué he aprendido. Cada post enlaza al commit exacto de la semana.
+Cada martes publico un post en mi newsletter [Multiagente](https://sergiodima.dev/multiagente) explicando qué he cambiado, por qué, y qué he aprendido. Cada post enlaza al commit exacto de la semana en este repo Y en el de la app.
 
 ## Por qué público
 
-Porque montarlo a puerta cerrada es una excusa para tomar atajos. Si está abierto, no me queda otra que hacerlo bien.
+Dos razones:
 
-Lee el [post de la semana 0](https://sergiodima.dev/blog/es/voy-a-montar-6-agentes-swift-en-publico) si quieres el contexto completo.
+1. **Auditabilidad.** Si alguien lee la newsletter y quiere comprobar que el setup que describo realmente existe y funciona, puede.
+2. **Honestidad.** Montarlo a puerta cerrada es una excusa para tomar atajos. Si está abierto, no me queda otra que hacerlo bien.
+
+Lee el [post de la semana 0](https://sergiodima.dev/blog/es/agentdeck-construyo-un-micro-saas-en-publico) si quieres el contexto completo del proyecto.
 
 ## Estado actual
 
@@ -31,25 +34,27 @@ Lee el [post de la semana 0](https://sergiodima.dev/blog/es/voy-a-montar-6-agent
 ├── skills/     ← skills personalizadas
 └── hooks/      ← hooks del lifecycle de Claude Code
 
-CLAUDE.md       ← contexto principal del proyecto LiftIQ (próximamente)
+CLAUDE.md       ← contexto principal del proyecto agentdeck (próximamente)
 CHANGELOG.md    ← qué cambió cada semana, con link al post
 LESSONS.md      ← errores encontrados y por qué no se repiten
 ```
 
 ## Hipótesis de los 6 roles (puede cambiar)
 
+Para una web app **Astro + React islands + Tailwind + Anthropic SDK + Stripe** la hipótesis inicial es:
+
 | # | Rol | Para qué |
 |---|---|---|
-| 1 | **Architect** | Decisiones de alto nivel, refactors, separación de módulos |
-| 2 | **View Builder** | Crear y modificar `View` de SwiftUI |
-| 3 | **State Manager** | `@Observable`, `@State`, `@Environment`, data flow |
-| 4 | **Networking / Persistence** | SwiftData, CloudKit, APIs externas |
-| 5 | **Test Writer** | Tests unitarios y de UI con XCTest |
+| 1 | **Architect** | Decisiones de alto nivel, fronteras Astro/React, qué meter en backend |
+| 2 | **View Builder** | Componentes Astro y React, estilado con Tailwind |
+| 3 | **State Manager** | Estado React (Zustand), data flow cliente ↔ servidor |
+| 4 | **Backend & Integrations** | Endpoints, parser markdown, Stripe, Anthropic SDK |
+| 5 | **Test Writer** | Tests unitarios + e2e con Playwright |
 | 6 | **QA Reviewer** | Lectura crítica antes de commit |
 
 ## Aviso
 
-Este es el setup **mío** para **mi** app. No es un kit reutilizable (todavía). Si funciona y se estabiliza, llegará un kit empaquetado en la fase 2 — pero no antes de tener métricas reales.
+Este es el setup **mío** para **mi** proyecto. No es un kit reutilizable (todavía). Si funciona y se estabiliza, llegará un kit empaquetado más adelante — pero no antes de tener métricas reales.
 
 Si quieres seguir el viaje, suscríbete a la newsletter:
 **👉 [sergiodima.dev/multiagente](https://sergiodima.dev/multiagente)**
@@ -57,3 +62,5 @@ Si quieres seguir el viaje, suscríbete a la newsletter:
 ## Licencia
 
 MIT. Cópialo, adáptalo, rómpelo. Solo te pido que si publicas algo basado en este setup, enlaces de vuelta — no por ego, sino porque así otros pueden seguir el hilo de cómo evoluciona.
+
+Nota: la **app agentdeck** (en su propio repo) usa una licencia distinta (BSL 1.1) — esto es solo el setup multi-agente, que se mantiene libre.
