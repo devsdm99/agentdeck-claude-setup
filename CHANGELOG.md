@@ -36,7 +36,10 @@ _Próxima entrada: semana 1 — `CLAUDE.md` real para agentdeck_
 - `drizzle.config.ts` apuntando a `DATABASE_URL`
 - `.env.example` con las variables necesarias (Supabase + Drizzle + Anthropic)
 - **Decisión clave (LESSON #1):** respetar el `AGENTS.md` que genera Next.js 15 y añadir el contenido del proyecto **debajo** del bloque protegido `BEGIN:nextjs-agent-rules`. `CLAUDE.md` se mantiene como simple `@AGENTS.md`.
-- Cuenta Supabase + proyecto `agentdeck` → pendiente de crear (manual)
+- ✅ Cuenta Supabase + proyecto `agentdeck` creados (Europe, RLS automático ON, expose tables OFF). Tras un incidente de seguridad (claves pegadas en chat), proyecto recreado con keys nuevas.
+- ✅ `.env.local` rellenado (NUNCA se commitea).
+- ✅ Primera tabla `profiles` creada en Supabase vía `npx drizzle-kit push`.
+- **LESSON #2:** Supabase direct connection (puerto 5432) es IPv6-only desde Q4 2024. Desde redes sin IPv6 público (la mayoría de ISPs domésticos), `drizzle-kit` se cuelga sin error. Solución: usar siempre `DATABASE_URL` del pooler (puerto 6543, IPv4-routable), tanto para runtime como para migraciones. `drizzle.config.ts` ajustado.
 
 ### Post asociado
 
