@@ -40,7 +40,19 @@ _Próxima entrada: semana 1 — `CLAUDE.md` real para agentdeck_
 - ✅ `.env.local` rellenado (NUNCA se commitea).
 - ✅ Primera tabla `profiles` creada en Supabase vía `npx drizzle-kit push`.
 - **LESSON #2:** Supabase direct connection (puerto 5432) es IPv6-only desde Q4 2024. Desde redes sin IPv6 público (la mayoría de ISPs domésticos), `drizzle-kit` se cuelga sin error. Solución: usar siempre `DATABASE_URL` del pooler (puerto 6543, IPv4-routable), tanto para runtime como para migraciones. `drizzle.config.ts` ajustado.
+- **Refactor de arquitectura completo (29 abril, sesión tarde):**
+  - Estructura de carpetas profesional: `app/` · `components/{ui,layout,features}/` · `features/<slice>/{actions,queries,schemas,service}.ts` · `lib/{db,supabase,env,utils}` · `shared/{types,constants,errors}` · `utils/` · `hooks/`.
+  - Schema dividido por dominio en `src/lib/db/schema/`: `enums.ts`, `profiles.ts`, `repos.ts`, `scans.ts`, `relations.ts`, `index.ts` (re-export).
+  - **Modelo de datos completo (11 tablas + 7 enums tipados):** `profiles`, `repos`, `repo_sources`, `scans`, `scan_stats`, `scan_files`, `scan_agents`, `scan_agent_tools`, `scan_skills`, `scan_skill_triggers`, `scan_hooks`. Todas las listas estructuradas son tablas hijas (cero JSON-as-table). `jsonb` reservado solo para `frontmatter` (input heterogéneo del usuario).
+  - `repo_sources` permite **múltiples métodos de ingesta** por repo (URL pública, zip upload, GitHub OAuth futuro, local). Cada `scan` referencia explícitamente la `source` que lo originó.
+  - Validación de `process.env` con Zod en `src/lib/env.ts` (server + client schemas separados).
+  - **`import 'server-only'`** en módulos que tocan DB o service-role keys (`lib/db`, `lib/supabase/server`, futuras `features/*/queries|actions`).
+  - `lib/utils.ts` (cn de shadcn) intacto por convención del framework de UI.
+  - Tabla `profiles` previa **dropeada (estaba vacía)** y recreada con la migración nueva. Migración aplicada limpiamente: archivo único `0000_acoustic_titania.sql` con 7 enums + 11 tablas + 14 FKs + 12 índices (5 únicos para integridad).
+- **`.claude/skills/arch-guard`:** primera skill del repo de la app, defensiva. Triggers automáticos en cualquier `.ts`/`.tsx`. Codifica las reglas de layer/import/typing y obliga a un checklist pre-cierre. La arquitectura deja de ser un README aspiracional.
+- **ESLint 9 flat config** con plugin oficial de Next + `typescript-eslint`. Reglas a `error`: `no-explicit-any`, `no-non-null-assertion`, `consistent-type-imports`. Scripts `lint` y `typecheck` añadidos. `npm run build`, `lint` y `typecheck` pasan en verde.
+- **LESSON #3:** una skill con triggers automáticos defiende la arquitectura mejor que un documento aspiracional. Ver `LESSONS.md`.
 
 ### Post asociado
 
-[Semana 1 — El primer `CLAUDE.md` de agentdeck (próximamente)](https://sergiodima.dev/multiagente)
+[Semana 1 — El primer `CLAUDE.md` de agentdeck (programado para martes 5 mayo)](https://sergiodima.dev/multiagente)

@@ -81,3 +81,34 @@ Resultado: la resolución DNS devuelve solo una IP IPv6, mi máquina intenta con
 **Post:** [Semana 1 — El primer `CLAUDE.md` de agentdeck](https://sergiodima.dev/multiagente) _(publicación martes 5 mayo 2026)_
 
 ---
+
+## 2026-04-29 — Una `skill` (`arch-guard`) defiende la arquitectura mejor que un README
+
+**Contexto:** primer modelo de datos real de agentdeck. Sergio pidió que el schema fuese profesional desde el principio: nada de JSON encubriendo lo que debería ser una tabla, todos los enums tipados con `pgEnum`, y una arquitectura de carpetas que escale (features verticales, capas con reglas de import, server-only declarado, Zod en todos los inputs).
+
+**Lo que normalmente pasa:** escribes esas reglas en un `CLAUDE.md` o `AGENTS.md` enorme, el agente las lee la primera vez, y a las dos semanas alguien (humano o LLM) mete un `any` "solo por ahora" o un campo `jsonb` "para iterar rápido". La arquitectura se erosiona en silencio.
+
+**Lo que decidí:** las reglas de arquitectura y tipado no viven en `AGENTS.md` — viven en una skill propia, `arch-guard`, en `.claude/skills/arch-guard/SKILL.md`. La skill tiene un `description` con triggers explícitos ("use proactively whenever editing or creating .ts/.tsx files") para que el harness la cargue **automáticamente** cada vez que se toca código del repo. El `AGENTS.md` solo apunta a ella.
+
+**Por qué es mejor que un README aspiracional:**
+
+1. **Activación automática.** No depende de que el agente "se acuerde" de leer reglas. La skill se invoca por el contexto del trabajo (estás editando `.ts` → entra `arch-guard`).
+2. **Checklist al cierre.** La skill incluye una "pre-edit checklist" que el agente repasa **antes** de cerrar el cambio: ¿está en la capa correcta? ¿respeta los imports entre capas? ¿tiene `import 'server-only'` si toca DB? ¿pasa la regla `no-explicit-any`?
+3. **Reglas concretas, no aspiraciones.** En vez de "código limpio" (vacío), reglas verificables: "cero `any`, cero `!` non-null, types de DB derivados de Drizzle, jsonb solo para input heterogéneo".
+4. **Defensa activa, no pasiva.** Si una petición empuja a romper la regla ("mete los tools como JSON, ya"), la skill obliga al agente a parar y proponer la alternativa correcta (en este caso, una tabla `scan_agent_tools` separada).
+
+**Combo con ESLint:** las reglas de tipado (`no-explicit-any`, `no-non-null-assertion`, `consistent-type-imports`) están **también** en `eslint.config.mjs` con nivel `error`. La skill define la intención, ESLint la enforza en CI. Doble red.
+
+**Resultado del primer uso:** con `arch-guard` activa desde el primer minuto, el modelo de datos quedó con 11 tablas normalizadas, 7 `pgEnum`, separación correcta de Server Components vs Client Components, env vars validadas con Zod en `lib/env.ts`, y cero `any` en todo el repo. Sin que tuviera que pedírselo dos veces.
+
+**La regla que aplico ahora:**
+
+- Las **políticas que se aplican siempre** (estilo, tipado, layout) van en una skill con triggers automáticos, no en un documento.
+- `AGENTS.md` queda como entrada para el contexto de **producto** (qué construyes, por qué). Las reglas de **cómo construirlo** viven en skills.
+- Cualquier regla "verificable" tiene un check correspondiente en ESLint o tsconfig. Si no se puede verificar, probablemente es vaga y hay que reescribirla.
+
+**Coste:** 1.5h de diseño y refactor del scaffold a la estructura nueva. Ahorrado a partir de aquí: cada review que no tendré que hacer porque la regla ya estaba puesta antes de escribir el código.
+
+**Post:** [Semana 2 — El equipo de agentes empieza a tomar forma (próximamente)](https://sergiodima.dev/multiagente) _(publicación martes 12 mayo 2026)_
+
+---
