@@ -152,3 +152,35 @@ nodeStream.pipe(createGunzip()).pipe(tarExtract);
 **Post:** [Semana 2 — agentdeck ya escanea repos en vivo (próximamente)](https://sergiodima.dev/multiagente) _(publicación martes 12 mayo 2026)_
 
 ---
+
+## 2026-04-30 — `email rate limit exceeded` no significa lo que parece
+
+**Contexto:** primer día con Supabase Auth en agentdeck. Configuro middleware, /login, /signup, dashboard protegido. **Desactivo "Confirm email" en el panel de Authentication.** Pruebo signup en local y obtengo:
+
+```
+email rate limit exceeded
+```
+
+Y todos los toggles de email (Password changed, Email address changed, etc.) están en OFF. No hay SMTP custom configurado. **Sobre el papel, Supabase no está enviando absolutamente ningún email.** Pero el rechazo dice "rate limit de emails".
+
+**Lo que descubrí mirando los Auth Logs:**
+
+1. El SMTP gratuito que Supabase ofrece por defecto (compartido con miles de proyectos free tier) tiene un **rate limit de 2 emails/h** que en el plan free **no se puede subir**.
+2. Aunque tenga "Confirm email" en OFF en un sitio, había **otro toggle más profundo** (en `Authentication → Sign In / Providers → Email`, panel de detalle, no en el panel de "Email Templates" ni en "Security") que estaba en ON. Ese era el que mandaba.
+3. Más sutil aún: **incluso intentos fallidos cuentan contra la cuota.** Mi script de test e2e había intentado signups con dominios inválidos (`@agentdeck.local`, `@example.com`) que Supabase rechaza con `email_address_invalid`. Esos intentos no completan el signup, pero **el rate limiter incrementa el contador igualmente**, antes de validar. Es una protección anti-fuerza-bruta — la API no quiere darle pistas a un atacante sobre qué emails son válidos.
+
+**El nombre del error es engañoso:** `email rate limit exceeded` no significa "se intentó enviar un email y se rechazó por cuota". Significa: **"la cuota de envío de emails está agotada y por tanto no puedo procesar este signup, aunque al final no fuera a enviar ninguno"**. La protección actúa antes que el flujo de "¿realmente toca enviar email aquí?".
+
+**La regla que aplico ahora:**
+
+- **En desarrollo, asumir que cualquier flujo de auth con Supabase consume cuota de email aunque parezca que no debería.** Probar con cuidado, no en bucle.
+- **Para el plan free hay solo dos rutas honestas:**
+  1. **Configurar SMTP propio** (Resend, Postmark, Mailgun…) y olvidarse del rate limit. Es lo que se hará para producción.
+  2. **Esperar la hora completa** cuando saltes el límite, y diseñar tests que no consuman cuota (e.g. crear el `auth.user` directamente con la service-role key, sin pasar por el flujo público de signup).
+- En agentdeck dejo Resend planificado para semana 6-7 (cerca del lanzamiento, cuando hagan falta password recovery / facturas / emails reales). Hasta entonces, pruebas con un email real único y poca tolerancia al rate limit.
+
+**Coste:** 30 minutos de confusión — los toggles del dashboard no estaban donde el error sugería que debían estar, y el nombre del error no describe la causa real. La pista que me ahorró otros 20: ir a **Authentication → Logs** en lugar de seguir tocando settings a ciegas. Los logs muestran qué intentos llegaron, en qué orden, y con qué resultado.
+
+**Post:** [Semana 2 — agentdeck ya escanea repos en vivo (próximamente)](https://sergiodima.dev/multiagente) _(publicación martes 12 mayo 2026)_
+
+---
