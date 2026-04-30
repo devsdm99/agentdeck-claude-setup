@@ -1,6 +1,6 @@
 # agentdeck-claude-setup
 
-> El cerebro multi-agente que construye **[agentdeck](https://github.com/devsdm99/agentdeck)** — un micro-SaaS de pago para devs Claude Code.
+> El cerebro multi-agente que construye **[agentdeck](https://github.com/devsdm99/agentdeck)** — un micro-SaaS público para devs Claude Code.
 > Build-in-public. La app vive en su propio repo (también público). Aquí vive el setup que escribe ese código.
 
 ---
@@ -9,9 +9,9 @@
 
 Soy [Sergio Díaz](https://sergiodima.dev) y estoy construyendo, en público y desde cero, un setup multi-agente con [Claude Code](https://claude.com/claude-code) — y con ese setup estoy construyendo agentdeck, una herramienta para visualizar el setup multi-agente de cualquier repo de Claude Code.
 
-Este repo contiene **solo el setup** — `CLAUDE.md`, subagentes, skills y hooks — sin código de la app. La app vive en [github.com/devsdm99/agentdeck](https://github.com/devsdm99/agentdeck).
+Este repo contiene **solo el setup** — `CLAUDE.md`, subagentes, skills, hooks — sin código de la app. La app vive en [github.com/devsdm99/agentdeck](https://github.com/devsdm99/agentdeck).
 
-Cada martes publico un post en mi newsletter [Multiagente](https://sergiodima.dev/multiagente) explicando qué he cambiado, por qué, y qué he aprendido. Cada post enlaza al commit exacto de la semana en este repo Y en el de la app.
+Cada martes publico un post en mi newsletter [Multiagente](https://sergiodima.dev/multiagente) explicando qué he cambiado, por qué, y qué he aprendido. Cada post enlaza al commit exacto de la semana.
 
 ## Por qué público
 
@@ -24,33 +24,56 @@ Lee el [post de la semana 0](https://sergiodima.dev/blog/es/agentdeck-construyo-
 
 ## Estado actual
 
-🟡 **Semana 0 — Punto de partida.** Estructura inicial, sin agentes activos todavía. La carne llega en el commit de la semana 1.
+🟡 **Semana 2.** Backend del scanner de agentdeck ya operativo (parsea repos públicos y zip uploads en memoria, persiste en Postgres). Aún sin agentes propios definidos en este repo — la disciplina arquitectónica del proyecto vive como **skill** (`arch-guard`) en el repo de la app, que es donde más sentido tiene aplicarse.
+
+Lecciones publicadas (ver [`LESSONS.md`](LESSONS.md)):
+
+- **#1** — Next.js 15 ya viene con su propio `CLAUDE.md` y `AGENTS.md`. Cómo convivir con el bloque protegido del framework.
+- **#2** — Supabase direct connection es IPv6-only desde Q4 2024. Por qué `drizzle-kit` se cuelga sin error y cómo evitarlo.
+- **#3** — Una skill con triggers automáticos (`arch-guard`) defiende la arquitectura mejor que un README aspiracional.
+- **#4** — Cómo escanear un repo de GitHub sin `git clone`: codeload tarball + `tar-stream` en streaming.
 
 ## Estructura
 
 ```
 .claude/
-├── agents/     ← definiciones de subagentes
-├── skills/     ← skills personalizadas
-└── hooks/      ← hooks del lifecycle de Claude Code
+├── agents/      ← definiciones de subagentes (vacío todavía — llegan en semana 3)
+├── skills/      ← skills personalizadas (la skill arch-guard vive en el repo de la app)
+└── hooks/       ← hooks del lifecycle (vacío todavía — llegan cuando haya orquestación real)
 
-CLAUDE.md       ← contexto principal del proyecto agentdeck (próximamente)
-CHANGELOG.md    ← qué cambió cada semana, con link al post
-LESSONS.md      ← errores encontrados y por qué no se repiten
+CLAUDE.md        ← contexto principal (próximamente; hoy las reglas viven en AGENTS.md de la app)
+CHANGELOG.md     ← qué cambió cada semana, con link al post correspondiente
+LESSONS.md       ← errores encontrados, soluciones aplicadas, por qué no se repiten
 ```
 
-## Hipótesis de los 6 roles (puede cambiar)
+## Stack del proyecto que este setup construye
 
-Para una web app **Astro + React islands + Tailwind + Anthropic SDK + Stripe** la hipótesis inicial es:
+agentdeck (la app) está hecha en:
+
+- **Framework:** Next.js 15+ (App Router) + TypeScript estricto
+- **UI:** Tailwind CSS v4 + shadcn/ui
+- **DB:** Postgres en Supabase + Drizzle ORM
+- **Auth:** Supabase Auth (`@supabase/ssr`)
+- **Hosting:** Vercel
+- **Pagos (semana 6+):** Stripe
+- **AI calls:** Anthropic SDK donde aporte (scoring, summaries)
+
+Los detalles técnicos vivos están en `AGENTS.md` del [repo de la app](https://github.com/devsdm99/agentdeck/blob/main/AGENTS.md).
+
+## Hipótesis de roles del equipo de agentes
+
+Para una stack **Next.js 15 + React + Tailwind + Supabase + Drizzle + Anthropic SDK + Stripe** la hipótesis inicial es de 6 roles. Hipótesis — los agentes solo se materializan cuando hay trabajo repetitivo real para ellos:
 
 | # | Rol | Para qué |
 |---|---|---|
-| 1 | **Architect** | Decisiones de alto nivel, fronteras Astro/React, qué meter en backend |
-| 2 | **View Builder** | Componentes Astro y React, estilado con Tailwind |
-| 3 | **State Manager** | Estado React (Zustand), data flow cliente ↔ servidor |
-| 4 | **Backend & Integrations** | Endpoints, parser markdown, Stripe, Anthropic SDK |
-| 5 | **Test Writer** | Tests unitarios + e2e con Playwright |
-| 6 | **QA Reviewer** | Lectura crítica antes de commit |
+| 1 | **Architect** | Decisiones de alto nivel, fronteras Server/Client, layout entre features |
+| 2 | **View Builder** | Pages + Server/Client Components, estilado con Tailwind, shadcn |
+| 3 | **State & Data** | Server Actions, queries Drizzle, validación Zod |
+| 4 | **Backend & Integrations** | Webhooks (Stripe, GitHub), endpoints API, parsers, AI calls |
+| 5 | **Test Writer** | Tests unitarios + integración, Playwright si hace falta |
+| 6 | **QA Reviewer** | Lectura crítica antes de commit, lint/typecheck/build |
+
+La regla del proyecto: **no se crea un agente hasta que hay un trabajo repetitivo concreto para él.** El primero (probablemente View Builder) llega en la semana 3, no antes.
 
 ## Aviso
 
@@ -58,9 +81,3 @@ Este es el setup **mío** para **mi** proyecto. No es un kit reutilizable (todav
 
 Si quieres seguir el viaje, suscríbete a la newsletter:
 **👉 [sergiodima.dev/multiagente](https://sergiodima.dev/multiagente)**
-
-## Licencia
-
-MIT. Cópialo, adáptalo, rómpelo. Solo te pido que si publicas algo basado en este setup, enlaces de vuelta — no por ego, sino porque así otros pueden seguir el hilo de cómo evoluciona.
-
-Nota: la **app agentdeck** (en su propio repo) usa una licencia distinta (BSL 1.1) — esto es solo el setup multi-agente, que se mantiene libre.
