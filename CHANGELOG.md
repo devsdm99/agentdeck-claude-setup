@@ -56,3 +56,24 @@ _Próxima entrada: semana 1 — `CLAUDE.md` real para agentdeck_
 ### Post asociado
 
 [Semana 1 — El primer `CLAUDE.md` de agentdeck (programado para martes 5 mayo)](https://sergiodima.dev/multiagente)
+
+---
+
+## [Semana 2 — work in progress] — desde 2026-04-30
+
+### Cambios en curso (no publicados aún)
+
+- **Scanner básico end-to-end (jueves 30 abril):**
+  - `features/scans/` con vertical slice completo: `service.ts` (parseClaudeDirectory pura), `parsers/{frontmatter,agent,skill,hook}.ts`, `ingest/{from-zip,from-url}.ts`, `persist.ts` (transacción Drizzle), `actions.ts`, `schemas.ts`.
+  - **Ingesta sin filesystem ni git binary:** URL pública de GitHub se baja como `tar.gz` desde `codeload.github.com`, se descomprime con `zlib.createGunzip()` y se parsea con `tar-stream` en streaming. Solo se retienen archivos en `.claude/` + `CLAUDE.md` + `AGENTS.md`. Fallback `main → master` automático.
+  - **Mismo pipeline para zip upload:** `JSZip` produce los mismos `VirtualFile[]` que el tarball, así que el resto del pipeline es idéntico. Cambias el origen, no cambias el parser ni la persistencia.
+  - **Parsers tipados:** frontmatter YAML con `js-yaml`. Agents (con `tools[]` normalizado a tabla hija). Skills (con `triggers[]` opcional). Hooks desde `settings.json` con normalización de nombres (`PreToolUse → pre_tool_use`).
+  - **Persistencia transaccional:** un scan crea N archivos + N agents (+ tools) + N skills (+ triggers) + N hooks en una sola transacción. Cero JSON-as-table en runtime. `sha256Hex` por archivo para diff futuro.
+  - **API routes** `POST /api/scans/from-url` (JSON) y `POST /api/scans/from-zip` (multipart). Auth temporal con `SCANNER_BOOTSTRAP_TOKEN` — se sustituye por Supabase Auth la semana que viene (viernes 1 mayo).
+  - **Dogfood real:** scanner verificado contra el propio repo `agentdeck` (1 skill `arch-guard` detectada con frontmatter completo) y contra un zip sintético (1 agent con 3 tools, 1 skill, 2 hooks con event normalizado). Idempotencia confirmada: 3 scans del mismo repo, 3 rows distintos sin sobrescribir.
+- **LESSON #4:** cómo escanear un repo de GitHub sin clonar nada (codeload + tar-stream en memoria). Ver `LESSONS.md`.
+- **Bug pillado en runtime:** `ANTHROPIC_API_KEY=""` (var presente pero vacía) hacía explotar la validación Zod en `lib/env.ts`. Fix: helper `optional()` que mapea `""` → `undefined` antes de la validación. Aplicado a todas las variables opcionales del schema.
+
+### Post asociado
+
+[Semana 2 — agentdeck ya escanea repos en vivo (programado para martes 12 mayo)](https://sergiodima.dev/multiagente)

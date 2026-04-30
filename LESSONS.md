@@ -112,3 +112,43 @@ Resultado: la resolución DNS devuelve solo una IP IPv6, mi máquina intenta con
 **Post:** [Semana 2 — El equipo de agentes empieza a tomar forma (próximamente)](https://sergiodima.dev/multiagente) _(publicación martes 12 mayo 2026)_
 
 ---
+
+## 2026-04-30 — Cómo escanear un repo de GitHub sin clonar nada
+
+**Contexto:** primer scanner de agentdeck. Hay que leer un repo público (URL de GitHub), extraer su `.claude/` y meter el resultado en Postgres. Mi reflejo inicial: instalar `simple-git`, clonar a `/tmp`, leer del filesystem, borrar al acabar. Lo descarté.
+
+**Por qué la solución obvia es mala aquí:**
+
+1. **Vercel no te deja escribir filesystem persistente.** Sí, `/tmp` está disponible (~512MB), pero solo durante la invocación. Cualquier cosa que pase de unos segundos o invoque varias veces es frágil.
+2. **`git clone` es un binario.** En Vercel no está. En un container de producción tampoco salvo que lo metas tú.
+3. **Solo necesito unos KB del repo (`.claude/` y los `*.md` raíz).** Bajarme el repo entero a disco para usar el 1% es pereza arquitectónica.
+
+**Lo que hice:** descargar el **tarball** del repo desde GitHub y procesarlo en streaming, sin tocar disco.
+
+```ts
+const url = `https://codeload.github.com/${owner}/${repo}/tar.gz/refs/heads/${branch}`;
+const response = await fetch(url);
+const nodeStream = Readable.fromWeb(response.body);
+nodeStream.pipe(createGunzip()).pipe(tarExtract);
+```
+
+`codeload.github.com` es el subdominio que usa GitHub para servir archivos. No requiere auth para repos públicos, no tiene rate limits agresivos, y devuelve un `.tar.gz`. Lo combino con `tar-stream` (Node, no usa filesystem) y `zlib.createGunzip()` (built-in Node) para descomprimir y parsear entry por entry **mientras el stream llega**. En el `'entry'` del tar, decido si el archivo me interesa (`.claude/...` o `CLAUDE.md` o `AGENTS.md`) y si no, hago `stream.resume()` para descartarlo sin acumularlo en memoria.
+
+**Resultado:** un repo público se escanea en memoria, en uno o dos segundos, sin filesystem, sin git binary, sin cuotas. Funciona igual en local que en Vercel.
+
+**Tres detalles que añadí al diseño y que merecen la pena:**
+
+1. **Fallback `main` → `master` automático.** Algunos repos viejos siguen en `master`. Si el primer fetch a `refs/heads/main` falla, lo intento con `master` antes de devolver error. Cero coste, mucha menos fricción de UX.
+2. **Mismo flujo para zip upload.** El usuario puede subir un `.zip` del proyecto y el resto del pipeline (parseClaudeDirectory → persist) es idéntico. Esto solo es posible porque defino una `VirtualFile = { path, bytes: Uint8Array }` como tipo común, y todos los métodos de ingesta producen `VirtualFile[]`. Cambias el origen, no cambias el resto.
+3. **Límites de tamaño explícitos.** 10MB por zip, 2MB por archivo. Un setup multi-agente típico ocupa <100KB; cualquier cosa por encima es ruido o ataque. Con `MAX_FILE_BYTES` chequeado dentro del `'data'` handler del tar, nunca se acumula un archivo grande en memoria — se aborta el chunk en cuanto cruza el umbral.
+
+**La regla que aplico ahora:**
+
+- Antes de instalar una librería que opera sobre filesystem (`fs-extra`, `simple-git`, etc.), preguntarme si **realmente necesito el repo en disco** o solo unos archivos. En el 90% de los casos, un fetch + parser de stream es más simple, más rápido y compatible con cualquier runtime.
+- Cuando un servicio (GitHub) ya te da el archivo empaquetado, úsalo. No reproduzcas su trabajo con un wrapper de git.
+
+**Coste:** 0 de fricción una vez que pillé la idea. Lo que evité: una dependencia de `simple-git`, el setup de un binario `git` en el runtime, y horas de debugging cuando aquello explote en producción.
+
+**Post:** [Semana 2 — agentdeck ya escanea repos en vivo (próximamente)](https://sergiodima.dev/multiagente) _(publicación martes 12 mayo 2026)_
+
+---
