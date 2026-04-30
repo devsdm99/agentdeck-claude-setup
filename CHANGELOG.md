@@ -73,6 +73,15 @@ _Próxima entrada: semana 1 — `CLAUDE.md` real para agentdeck_
   - **Dogfood real:** scanner verificado contra el propio repo `agentdeck` (1 skill `arch-guard` detectada con frontmatter completo) y contra un zip sintético (1 agent con 3 tools, 1 skill, 2 hooks con event normalizado). Idempotencia confirmada: 3 scans del mismo repo, 3 rows distintos sin sobrescribir.
 - **LESSON #4:** cómo escanear un repo de GitHub sin clonar nada (codeload + tar-stream en memoria). Ver `LESSONS.md`.
 - **Bug pillado en runtime:** `ANTHROPIC_API_KEY=""` (var presente pero vacía) hacía explotar la validación Zod en `lib/env.ts`. Fix: helper `optional()` que mapea `""` → `undefined` antes de la validación. Aplicado a todas las variables opcionales del schema.
+- **Auth completo (jueves 30 abril, sesión tarde — simulando viernes 1):**
+  - Middleware Supabase que refresca cookie de sesión en cada request y redirige rutas privadas a `/login`. Las API routes `/api/scans/*` quedan exentas: devuelven 401 JSON.
+  - `features/auth/` slice completo: `schemas.ts` Zod, `queries.ts` (`getUser`/`requireUser` server-only), `actions.ts` (`signupAction`, `loginAction`, `logoutAction` como Server Actions con form state tipado).
+  - Páginas `/login` y `/signup` separadas con `AuthForm` Client Component compartido (useActionState + pending state nativo de React 19). Layout `(app)/` con `requireUser()` y header con email + logout. Home rediseñada con CTAs según haya o no sesión.
+  - Trigger Postgres `handle_new_user` (`auth.users → public.profiles`) como migración manual `drizzle/manual/0001_handle_new_user_trigger.sql` + script `apply-trigger.mjs`.
+  - API routes `/api/scans/*` ahora usan `requireUser()` y verifican `repo.userId === user.id` (403 si no). `SCANNER_BOOTSTRAP_TOKEN` eliminado del schema env y de `.env.example`.
+  - shadcn primitives añadidos: `input`, `label`, `card`. Helpers en `scripts/dev/`: `apply-trigger`, `audit-auth-users`, `db-ping`, `show-all`.
+  - Verificado end-to-end con email real (`djsdm99@gmail.com`): signup → trigger crea profile → dashboard cargando con sesión activa.
+- **LESSON #5:** `email rate limit exceeded` en Supabase no significa lo que parece. Ver `LESSONS.md`.
 
 ### Post asociado
 
