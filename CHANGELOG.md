@@ -85,4 +85,25 @@ _Próxima entrada: semana 1 — `CLAUDE.md` real para agentdeck_
 
 ### Post asociado
 
-[Semana 2 — agentdeck ya escanea repos en vivo (programado para martes 12 mayo)](https://sergiodima.dev/multiagente)
+[Semana 2 — agentdeck ya escanea repos en vivo](https://sergiodima.dev/multiagente) (publicado martes 12 mayo)
+
+---
+
+## [Semana 3] — desde 2026-05-12
+
+### Cambios
+
+- **Primer subagente real: View Builder** (martes 12 mayo).
+  - `.claude/agents/view-builder.md` en el setup repo (fuente de verdad) y copia en el repo de la app para que Claude Code lo cargue desde el directorio de trabajo diario.
+  - Foco quirúrgico: construye pages, layouts y componentes presentacionales en Next.js 15. No toca schema, ni Server Actions de dominio, ni API routes. Si una página necesita una query nueva, se detiene y pide que se cree primero.
+  - Convive con `arch-guard` (skill) sin solape: la skill defiende arquitectura/tipado en todo el código; el agente es un especialista que invocas para pantallas.
+  - Tools acotadas (Read, Write, Edit, Grep, Glob, Bash). Modelo Sonnet 4.6.
+  - Pre-edit checklist obligatoria (route group, server vs client, query existente, empty state honesto, paleta y tipografía, lint/typecheck verdes).
+- **Primer uso del View Builder:** construcción de `/repos/[slug]/scans/[scanId]/agents/[agentId]` — pantalla de detalle individual de un agente parseado. Funciona a la primera.
+- **Performance discovery durante el primer uso:** el listado del scan tardaba 3-4s con 184 agentes porque cargaba `getScanDetail` (que incluye `bodyMd`, `rawContent`, `frontmatter` parseado de cada item). Fix: nueva query `getScanSummary` solo con campos necesarios para la lista. Tiempo de carga: instantáneo. **Sin paginación ni lazy loading** — solo separación correcta de "lista" vs "detalle" en la capa de queries.
+- **Bug pillado el miércoles 6 mayo (LESSON #6):** unique constraint `(scan_id, name)` en `scan_agents` y `scan_skills` reventaba al escanear repos no canónicos donde dos agentes pueden compartir `name` en frontmatter. Migración `0001_married_the_watchers.sql`: unique pasa a `(scan_id, file_id)`. Identidad técnica vs identidad lógica.
+- **LESSON #6 + #7** documentadas en `LESSONS.md`.
+
+### Post asociado
+
+[Semana 3 — el primer subagente real (próximamente, martes 19 mayo)](https://sergiodima.dev/multiagente)

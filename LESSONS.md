@@ -184,3 +184,71 @@ Y todos los toggles de email (Password changed, Email address changed, etc.) est
 **Post:** [Semana 2 — agentdeck ya escanea repos en vivo (próximamente)](https://sergiodima.dev/multiagente) _(publicación martes 12 mayo 2026)_
 
 ---
+
+## 2026-05-06 — Identidad técnica vs identidad lógica (cuando el INSERT explota en producción)
+
+**Contexto:** scanner de agentdeck funcionando contra mi propio repo (1 skill detectada) y contra repos sin `.claude/` (0 archivos, mensaje honesto). Apunto a `agency-agents` (repo público con 184 agentes en carpetas como `engineering/`, `design/`, `marketing/`). El INSERT bulk en Postgres explota con:
+
+```
+duplicate key value violates unique constraint "scan_agents_scan_name_unique"
+```
+
+**Lo que descubrí:** mi schema decía: dentro de un mismo scan, **dos agentes no pueden tener el mismo `name`**. Codifiqué esa unicidad sin pensar, asumiendo que el `name` del frontmatter era la identidad del agente.
+
+Y resulta que en `agency-agents` hay agentes distintos cuyo `name` del frontmatter coincide. La identidad técnica del agente **no es el nombre, es el archivo**: dos `.md` pueden compartir nombre lógico, pero `path` (`engineering/frontend-developer.md`) siempre es único.
+
+**La fix:** migración pequeña que cambia el unique de `(scan_id, name)` a `(scan_id, file_id)`, dejando un índice no único sobre `(scan_id, name)` para futuras búsquedas por nombre. Y refactor de `persist.ts` para mapear tools y triggers por `fileId` en vez de por `name`.
+
+**La regla que aplico ahora:**
+
+- Al diseñar constraints de unicidad en una tabla, **separar identidad técnica de identidad lógica**:
+  - **Identidad técnica:** la que la base de datos necesita para resolver duplicados sin perder integridad. Suele ser un path, un sha, un foreign key o un id sintético.
+  - **Identidad lógica:** la que el usuario lee. Suele ser un nombre, un slug, un título.
+- Confundirlas es lo que **casi nunca está mal mientras tu propio repo sea el caso de prueba**, y te explota la primera vez que conectas datos ajenos.
+- Como contraprueba: ¿podría haber dos filas con el mismo "identificador" que aún así sean entidades distintas y válidas? Si la respuesta es "sí, en algún repo del mundo", entonces ese campo NO debe ser tu unique.
+
+**Coste:** ~20 minutos de diagnóstico una vez vi el error real. Lo que me salvó: que Drizzle propaga el error de Postgres tal cual, así que pude leer literalmente `duplicate key value violates unique constraint` y saber qué constraint estaba mal.
+
+**Post:** [Semana 2 — agentdeck ya escanea repos en vivo](https://sergiodima.dev/multiagente) _(publicado martes 12 mayo 2026)_
+
+---
+
+## 2026-05-12 — El primer subagente real (View Builder) y por qué la lista del scan se cargaba lenta
+
+**Contexto:** primer agente del equipo, semana 3 del plan editorial. Construyo el View Builder — un especialista en UI: pages, layouts, componentes, respetando design system. NO toca schema, NO toca Server Actions de dominio, NO toca API routes. Eso lo dejo para futuros agentes (Backend & Integrations, Schema Migrator, etc.).
+
+**Lo que decidí sobre el diseño del agente:**
+
+1. **Foco quirúrgico.** El agente solo construye UI. Si una página necesita una query nueva, **se detiene y pide que se cree primero** (no inventa el query). Esto evita que el agente "se pase" y meta cambios fuera de su scope.
+2. **Convive con `arch-guard`, no compite.** La skill defiende arquitectura y tipado en todo el código. El agente es un especialista que invocas para pantallas concretas. **Planos distintos, sin solape.**
+3. **Tools acotadas.** Read, Write, Edit, Grep, Glob, Bash (para lint/typecheck). NO `WebFetch`/`WebSearch`, NO `Task` (no orquesta otros agentes). Si lo necesita, paro y pienso si toca otro agente.
+4. **Modelo Sonnet 4.6, no Opus.** Construir UI siguiendo un design system establecido no necesita el modelo más caro. Reservar Opus para cuando aporta.
+5. **Pre-edit checklist obligatoria** copiada del patrón de `arch-guard`: verifica route group correcto, server vs client component, query existente, empty state honesto, paleta y tipografía, `npm run lint` / `npm run typecheck` verdes.
+
+**Cómo se invoca en Claude Code:**
+
+El `.md` vive en `.claude/agents/view-builder.md` del repo de la app (también una copia en el repo de setup para mantener la fuente de verdad). Claude Code lo carga automáticamente cuando el contexto matchea su `description` ("create a page", "build a screen", "construir el detalle de…"). También se puede invocar explícitamente con la Task tool en algunas configuraciones del harness.
+
+**Bonus del primer uso — performance discovery:**
+
+Le pedí al agente que construyera `/repos/[slug]/scans/[scanId]/agents/[agentId]` — la pantalla de detalle individual de un agente. Lo hizo bien. Pero al navegar al listado de scan en un repo con 184 agentes, **la página tardaba 3-4 segundos en cargar**.
+
+Diagnóstico: el listado del scan estaba pidiendo `getScanDetail` que incluye `bodyMd` + `fileRawContent` + `frontmatter` parseado de cada agente. **Multiplicado por 184**, eran varios MB de HTML serializados y enviados al cliente para una vista que ya no usaba ese contenido inline (las cards eran links a la nueva ruta de detalle individual).
+
+Fix: una query nueva `getScanSummary` que solo trae `{ id, name, description, model, filePath, fileSizeBytes, tools }` — sin `bodyMd`, sin `rawContent`, sin `frontmatter` parseado. La página del listado pasó a usarla. El detalle individual sigue cargando `getScanDetail` (que sí necesita el contenido completo).
+
+Resultado: la página del listado carga al instante. **Sin paginación, sin lazy loading, sin componentes nuevos**. Solo separar "lista" de "detalle" en la capa de queries.
+
+**La regla que aplico ahora:**
+
+- **Cuando una página tiene una lista y un detalle, las queries deben reflejar esa separación.** No reutilices la query "rica" para el listado solo porque ya existe — gasta payload.
+- **Mide antes de añadir paginación.** Mucha gente añade paginación pensando que el problema es "demasiados items en la lista". El problema real suele ser "demasiados bytes por item en la lista".
+- La regla de oro: en la lista, solo lo que se ve en cada card. En el detalle, todo.
+
+**Coste del agente:** 45 minutos de diseño y escritura. Ahorrado a partir de aquí: cada vez que necesite una pantalla nueva, lo invoco y me ahorro reescribir los patrones del proyecto.
+
+**Coste de la lección de performance:** 20 minutos de refactor de query. Lección perpetua.
+
+**Post:** [Semana 3 — el primer subagente real (próximamente)](https://sergiodima.dev/multiagente) _(publicación martes 19 mayo 2026)_
+
+---
